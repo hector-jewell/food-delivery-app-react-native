@@ -88,9 +88,9 @@ Our solution is open source but the backend and API are proprietary, and can be 
 
 Our food delivery system also comes with the following:
 
-- Enatega Multi vendor Customer App
-- Enatega Multi vendor Rider App
-- Enatega Multi vendor Restaurant App
+- React Native based Food Delivery Customer App
+- React Native based Food Delivery Rider App
+- React Native based Food Delivery Restaurant App
 - Customer Food Ordering Website
 - Admin Web Dashboard
 - Application ProgramInterface Server
