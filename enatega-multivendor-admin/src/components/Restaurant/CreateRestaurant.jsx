@@ -3,6 +3,9 @@ import { validateFunc } from '../../constraints/constraints'
 import { withTranslation } from 'react-i18next'
 import { useMutation, gql, useQuery } from '@apollo/client'
 import { createRestaurant, getCuisines, restaurantByOwner } from '../../apollo'
+import defaultLogo from '../../assets/img/defaultLogo.png'
+import { IconButton } from '@mui/material';
+import Close from '@mui/icons-material/Close';
 
 import {
   Box,
@@ -58,6 +61,7 @@ const CreateRestaurant = props => {
   const owner = props.owner
   const [showPassword, setShowPassword] = useState(false)
   const [imgUrl, setImgUrl] = useState('')
+  const [logoUrl, setLogoUrl] = useState('')
   const [nameError, setNameError] = useState(null)
   const [usernameError, setUsernameError] = useState(null)
   const [passwordError, setPasswordError] = useState(null)
@@ -123,9 +127,10 @@ const CreateRestaurant = props => {
 
   const formRef = useRef(null)
 
-  const selectImage = (event, state) => {
-    const result = filterImage(event)
-    if (result) imageToBase64(result)
+  const handleFileSelect = (event, type) => {
+    let result;
+    result = filterImage(event);
+    if (result) imageToBase64(result, type)
   }
 
   const filterImage = event => {
@@ -136,19 +141,25 @@ const CreateRestaurant = props => {
     images = images.filter(image => image.name.match(/\.(jpg|jpeg|png|gif)$/))
     return images.length ? images[0] : undefined
   }
-  const imageToBase64 = imgUrl => {
+
+  const imageToBase64 = (imgUrl, type) => {
     const fileReader = new FileReader()
     fileReader.onloadend = () => {
-      setImgUrl(fileReader.result)
+      if (type === 'image' && fileReader.result) {
+        setImgUrl(fileReader.result)
+      } else if (type === 'logo' && fileReader.result) {
+        setLogoUrl(fileReader.result)
+      }
     }
     fileReader.readAsDataURL(imgUrl)
   }
-  const uploadImageToCloudinary = async() => {
-    if (imgUrl === '') return imgUrl
+
+  const uploadImageToCloudinary = async(uploadType) => {
+    if (!uploadType) return;
 
     const apiUrl = CLOUDINARY_UPLOAD_URL
     const data = {
-      file: imgUrl,
+      file: uploadType,
       upload_preset: CLOUDINARY_FOOD
     }
     try {
@@ -165,6 +176,10 @@ const CreateRestaurant = props => {
       console.log(e)
     }
   }
+
+  const handleCloseModal = () => {
+    props.onClose() // Update state to close modal
+  };
 
   const onSubmitValidaiton = data => {
     const form = formRef.current
@@ -191,6 +206,15 @@ const CreateRestaurant = props => {
     const usernameError = !validateFunc({ name: username }, 'name')
     const passwordError = !validateFunc({ password }, 'password')
     const salesTaxError = !validateFunc({ salesTax }, 'salesTax')
+
+    if (deliveryTime < 0 || minimumOrder < 0 || salesTax < 0) {
+      setDeliveryTimeError(true);
+      setMinimumOrderError(true);
+      setSalesTaxError(true);
+      setErrors(t('Negative Values Not Allowed'));
+      return false;
+    }
+
     setNameError(nameError)
     setAddressError(addressError)
     setUsernameError(usernameError)
@@ -256,7 +280,7 @@ const CreateRestaurant = props => {
       typeof value === 'string' ? value.split(',') : value
     )
   }
-  
+
   const classes = useStyles()
   const globalClasses = useGlobalStyles()
 
@@ -269,10 +293,13 @@ const CreateRestaurant = props => {
             {t('AddRestaurant')}
           </Typography>
         </Box>
-        <Box ml={30} mt={1}>
+        <Box ml={10} mt={1}>
           <label>{t('Available')}</label>
           <Switch defaultChecked style={{ color: 'black' }} />
         </Box>
+        <IconButton onClick={handleCloseModal} style={{ position: 'absolute', right: 5, top: 35 }}>
+          <Close />
+        </IconButton>
       </Box>
 
       <Box className={classes.form}>
@@ -296,8 +323,8 @@ const CreateRestaurant = props => {
                     usernameError === false
                       ? globalClasses.inputError
                       : usernameError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                   onChange={event => {
                     event.target.value = event.target.value
@@ -325,8 +352,8 @@ const CreateRestaurant = props => {
                     passwordError === false
                       ? globalClasses.inputError
                       : passwordError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                   endAdornment={
                     <InputAdornment position="end">
@@ -360,8 +387,8 @@ const CreateRestaurant = props => {
                     nameError === false
                       ? globalClasses.inputError
                       : nameError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                 />
               </Box>
@@ -384,8 +411,8 @@ const CreateRestaurant = props => {
                     addressError === false
                       ? globalClasses.inputError
                       : addressError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                 />
               </Box>
@@ -407,8 +434,8 @@ const CreateRestaurant = props => {
                     deliveryTimeError === false
                       ? globalClasses.inputError
                       : deliveryTimeError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                 />
               </Box>
@@ -430,8 +457,8 @@ const CreateRestaurant = props => {
                     minimumOrderError === false
                       ? globalClasses.inputError
                       : minimumOrderError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                 />
               </Box>
@@ -453,8 +480,8 @@ const CreateRestaurant = props => {
                     salesTaxError === false
                       ? globalClasses.inputError
                       : salesTaxError === true
-                      ? globalClasses.inputSuccess
-                      : ''
+                        ? globalClasses.inputSuccess
+                        : ''
                   ]}
                 />
               </Box>
@@ -499,40 +526,71 @@ const CreateRestaurant = props => {
             </Grid>
           </Grid>
 
-          <Box
-            mt={3}
-            style={{ alignItems: 'center' }}
-            className={globalClasses.flex}>
-            <img
-              className={classes.image}
-              alt="..."
-              src={
-                imgUrl ||
-                'https://enatega.com/wp-content/uploads/2023/11/man-suit-having-breakfast-kitchen-side-view.webp'
-              }
-            />
-            <label htmlFor="file-upload" className={classes.fileUpload}>
-              {t('UploadAnImage')}
-            </label>
-            <input
-              className={classes.file}
-              id="file-upload"
-              type="file"
-              accept="image/*"
-              onChange={event => {
-                selectImage(event, 'image_url')
-              }}
-            />
-          </Box>
+          <Grid container spacing={2} >
+            <Grid item xs={12} sm={6}>
+              <Box
+                mt={3}
+                style={{ alignItems: 'center' }}
+                className={globalClasses.flex}>
+                <img
+                  className={classes.image}
+                  alt="..."
+                  src={
+                    imgUrl ||
+                    'https://enatega.com/wp-content/uploads/2023/11/man-suit-having-breakfast-kitchen-side-view.webp'
+                  }
+                />
+                <label htmlFor="file-upload" className={classes.fileUpload}>
+                  {t('UploadAnImage')}
+                </label>
+                <input
+                  className={classes.file}
+                  id="file-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={event => {
+                    handleFileSelect(event, 'image')
+                  }}
+                />
+              </Box>
+            </Grid>
+
+            <Grid item xs={12} sm={6}>
+              <Box
+                mt={3}
+                style={{ alignItems: 'center' }}
+                className={globalClasses.flex}>
+                <img
+                  className={classes.image}
+                  alt="..."
+                  src={
+                    logoUrl || defaultLogo
+                  }
+                />
+                <label htmlFor="logo-upload" className={classes.fileUpload}>
+                  {t('UploadaLogo')}
+                </label>
+                <input
+                  className={classes.file}
+                  id="logo-upload"
+                  type="file"
+                  accept="image/*"
+                  onChange={event => {
+                    handleFileSelect(event, 'logo')
+                  }}
+                />
+              </Box>
+            </Grid>
+          </Grid>
           <Box>
             <Button
               className={globalClasses.button}
-               disabled={loading}
-                onClick={async e => {
+              disabled={loading}
+              onClick={async e => {
                 e.preventDefault()
-                const isValid = onSubmitValidaiton()
-                if (isValid) {
-                  const imgUpload = await uploadImageToCloudinary()
+                if (onSubmitValidaiton()) {
+                  const imgUpload = await uploadImageToCloudinary(imgUrl)
+                  const logoUpload = await uploadImageToCloudinary(logoUrl)
                   const form = formRef.current
                   const name = form.name.value
                   const address = form.address.value
@@ -541,6 +599,7 @@ const CreateRestaurant = props => {
                   const username = form.username.value
                   const password = form.password.value
                   const shopType = form.shopType.value
+
                   mutate({
                     variables: {
                       owner,
@@ -550,6 +609,8 @@ const CreateRestaurant = props => {
                         image:
                           imgUpload ||
                           'https://enatega.com/wp-content/uploads/2023/11/man-suit-having-breakfast-kitchen-side-view.webp',
+                        logo:
+                          logoUpload || defaultLogo,
                         deliveryTime: Number(deliveryTime),
                         minimumOrder: Number(minimumOrder),
                         username,

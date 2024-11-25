@@ -2,6 +2,7 @@ import { useEffect, useState, useContext } from 'react'
 import { StatusBar, Platform } from 'react-native'
 import * as Notifications from 'expo-notifications'
 import * as Device from 'expo-device'
+import Constants from 'expo-constants'
 import useEnvVars from '../../../environment'
 import gql from 'graphql-tag'
 import { login } from '../../apollo/mutations'
@@ -15,17 +16,15 @@ import { FlashMessage } from '../../ui/FlashMessage/FlashMessage'
 import analytics from '../../utils/analytics'
 import AuthContext from '../../context/Auth'
 import { useTranslation } from 'react-i18next'
-import {
-  GoogleSignin,
-} from '@react-native-google-signin/google-signin'
+import { GoogleSignin } from '@react-native-google-signin/google-signin'
+import * as Google from 'expo-auth-session/providers/google'
+
 
 const LOGIN = gql`
   ${login}
 `
-
 export const useCreateAccount = () => {
   const Analytics = analytics()
-
   const navigation = useNavigation()
   const [mutate] = useMutation(LOGIN, { onCompleted, onError })
   const [enableApple, setEnableApple] = useState(false)
@@ -44,16 +43,81 @@ export const useCreateAccount = () => {
 
   const configureGoogleSignin = () => {
     GoogleSignin.configure({
-      iosClientId: '967541328677-nf8h4ou7rhmq9fahs87p057rggo95eah.apps.googleusercontent.com',
-      androidClientId: '967541328677-7264tf7tkdtoufk844rck9mimrve135c.apps.googleusercontent.com'
+      iosClientId:
+        '967541328677-nf8h4ou7rhmq9fahs87p057rggo95eah.apps.googleusercontent.com',
+      androidClientId:
+        '967541328677-7264tf7tkdtoufk844rck9mimrve135c.apps.googleusercontent.com'
     })
   }
 
-  useEffect(() => {
-    configureGoogleSignin()
-  }, [])
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    androidClientId: ANDROID_CLIENT_ID_GOOGLE,
+    iosClientId: IOS_CLIENT_ID_GOOGLE
+  })
+
+
+  const getUserInfo = async (token) => {
+    //absent token
+    if (!token) return
+    //present token
+    try {
+      const response = await fetch(
+        'https://www.googleapis.com/userinfo/v2/me',
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      )
+      return await response.json()
+     
+    } catch (error) {
+      console.error(
+        'Failed to fetch user data:',
+        response.status,
+        response.statusText
+      )
+    }
+  }
 
   const signIn = async () => {
+    try {
+      loginButtonSetter('Google')
+      await promptAsync()
+    } catch (err) {
+      console.log('Sign in with Google error', err)
+    }
+  }
+
+  const signInWithGoogle = async () => {
+    try {
+  
+      if (response?.type === 'success') {
+
+        const google_user = await getUserInfo(response.authentication.accessToken)
+       
+        const userData = {
+          phone: '',
+          email: google_user.email,
+          password: '',
+          name: google_user.name,
+          picture: google_user.picture,
+          type: 'google'
+        }
+
+        await mutateLogin(userData)
+      } 
+    } catch (error) {
+      // Handle any errors that occur during AsyncStorage retrieval or other operations
+      console.error('Error retrieving user data from AsyncStorage:', error)
+    }
+  }
+
+  //add it to a useEffect with response as a dependency
+  useEffect(() => {
+    signInWithGoogle()
+  }, [response])
+  
+
+/*   const signIn = async () => {
     try {
       loginButtonSetter('Google')
       await GoogleSignin.hasPlayServices()
@@ -71,9 +135,9 @@ export const useCreateAccount = () => {
       setUser(user)
     } catch (error) {
       console.log('🚀 ~ signIn ~ error:', error)
-    } 
+    }
   }
-
+ */
   const { t } = useTranslation()
   // const [googleRequest, googleResponse, googlePromptAsync] =
   //   Google.useAuthRequest({
@@ -93,7 +157,7 @@ export const useCreateAccount = () => {
     navigation.navigate('Register')
   }
   const navigateToPhone = () => {
-    navigation.navigate('PhoneNumber')
+    navigation.navigate('PhoneNumber', { backScreen: 'Main'})
   }
   const navigateToMain = () => {
     navigation.navigate({
@@ -101,15 +165,18 @@ export const useCreateAccount = () => {
       merge: true
     })
   }
-
   async function mutateLogin(user) {
     setLoading(true)
     let notificationToken = null
     if (Device.isDevice) {
       const { status: existingStatus } =
-      await Notifications.getPermissionsAsync()
+        await Notifications.getPermissionsAsync()
       if (existingStatus === 'granted') {
-        notificationToken = (await Notifications.getExpoPushTokenAsync()).data
+        notificationToken = (
+          await Notifications.getExpoPushTokenAsync({
+            projectId: Constants.expoConfig.extra.eas.projectId
+          })
+        ).data
       }
     }
     mutate({
@@ -151,11 +218,9 @@ export const useCreateAccount = () => {
   useEffect(() => {
     checkIfSupportsAppleAuthentication()
   }, [])
-
   async function checkIfSupportsAppleAuthentication() {
     setEnableApple(await AppleAuthentication.isAvailableAsync())
   }
-
   async function onCompleted(data) {
     if (data.login.isActive == false) {
       FlashMessage({ message: t('accountDeactivated') })
@@ -198,7 +263,6 @@ export const useCreateAccount = () => {
       }
     }
   }
-
   function onError(error) {
     try {
       FlashMessage({
@@ -211,7 +275,6 @@ export const useCreateAccount = () => {
       setLoading(false)
     }
   }
-
   useFocusEffect(() => {
     if (Platform.OS === 'android') {
       StatusBar.setBackgroundColor(currentTheme.menuBar)

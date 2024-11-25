@@ -8,25 +8,20 @@ const navigationOptions = props => {
     // eslint-disable-next-line react/display-name
     headerRight: () => (
       <Ionicons
-        onPress={() =>
-          props.navigation.navigate({
-            name: 'Main',
-            merge: true
-          })
-        }
+        onPress={() => props?.isCustomNavigation ? props.navigation.navigate('Main') : props.navigation.goBack()}
         name="close"
         size={24}
-        color="black"
+        color={props.iconColor}
         style={styles().headerRightIcon}
       />
     ),
     // eslint-disable-next-line react/display-name
     headerLeft: () => (
       <Ionicons
-        onPress={() => props.navigation.goBack()}
+        onPress={() => props?.isCustomNavigation ? props.navigation.navigate('Main') : props.navigation.goBack()}
         name="chevron-back"
         size={24}
-        color="black"
+        color={props.iconColor}
         style={styles().headerLeftIcon}
       />
     ),

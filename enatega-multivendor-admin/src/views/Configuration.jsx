@@ -32,7 +32,7 @@ const Configuration = props => {
   const { data, error: errorQuery, loading: loadingQuery } = useQuery(
     GET_CONFIGURATION
   )
-  console.log('configuration', data)
+
   const { t } = props
   
   return (
@@ -79,9 +79,10 @@ const Configuration = props => {
             />
           </Grid>
           <Grid item sx={12} md={12} lg={5}>
-            <DeliveryRateConfiguration
-              deliveryRate={data && data.configuration.deliveryRate}
-            />
+                <DeliveryRateConfiguration
+                  deliveryRate={data && data?.configuration?.deliveryRate}
+                  costType={data && data?.configuration?.costType}
+              />
           </Grid>
           <Grid item sx={12} md={12} lg={5}>
             <TwilioConfiguration
@@ -160,6 +161,7 @@ const Configuration = props => {
               msgSenderId={data && data.configuration.msgSenderId}
               appId={data && data.configuration.appId}
               measurementId={data && data.configuration.measurementId}
+              vapidKey={data && data.configuration.vapidKey}
             />
           </Grid>
           <Grid item sx={12} md={12} lg={5}>

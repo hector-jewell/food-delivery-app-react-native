@@ -10,21 +10,74 @@ const GETCONFIGURATION = gql`
 
 const ConfigurationContext = React.createContext({})
 
-export const ConfigurationProvider = props => {
+const initialConfig = {
+  _id: '',
+  email: '',
+  password: '',
+  emailName: '',
+  enableEmail: true,
+  clientId: '',
+  clientSecret: '',
+  sandbox: false,
+  publishableKey: '',
+  secretKey: '',
+  currency: '',
+  currencySymbol: '',
+  deliveryRate: 5,
+  twilioAccountSid: '',
+  twilioAuthToken: '',
+  twilioPhoneNumber: '',
+  twilioEnabled: false,
+  formEmail: '',
+  sendGridApiKey: '',
+  sendGridEnabled: false,
+  sendGridEmail: '',
+  sendGridEmailName: '',
+  sendGridPassword: '',
+  dashboardSentryUrl: '',
+  webSentryUrl: '',
+  apiSentryUrl: '',
+  customerAppSentryUrl: '',
+  restaurantAppSentryUrl: '',
+  riderAppSentryUrl: '',
+  googleApiKey: '',
+  cloudinaryUploadUrl: '',
+  cloudinaryApiKey: '',
+  webClientID: '',
+  androidClientID: '',
+  iOSClientID: '',
+  expoClientID: '',
+  googleMapLibraries: '',
+  googleColor: '',
+  termsAndConditions: '',
+  privacyPolicy: '',
+  testOtp: '',
+  firebaseKey: '',
+  authDomain: '',
+  projectId: '',
+  storageBucket: '',
+  msgSenderId: '',
+  appId: '',
+  measurementId: '',
+  isPaidVersion: false,
+  skipMobileVerification: false,
+  skipEmailVerification: false,
+  costType: '',
+  vapidKey: ''
+}
+export const ConfigurationProvider = (props) => {
   const { loading, data, error } = useQuery(GETCONFIGURATION)
 
   const configuration =
     loading || error || !data.configuration
       ? {
-          currency: '',
-          currencySymbol: '',
-          deliveryRate: 0,
+         ...initialConfig,
           expoClientID:
             '967541328677-d46sl62t52g5r3o5m0mnl2hpptr242nl.apps.googleusercontent.com',
           androidClientID:
-            '967541328677-o7lcengpu35dugcdbnp4otsfnmngoknr.apps.googleusercontent.com',
+            '967541328677-7264tf7tkdtoufk844rck9mimrve135c.apps.googleusercontent.com',
           iOSClientID:
-            '967541328677-gvm85f1ouq92aucsannaduurf5r8mh2r.apps.googleusercontent.com'
+            '967541328677-nf8h4ou7rhmq9fahs87p057rggo95eah.apps.googleusercontent.com'
         }
       : data.configuration
   return (

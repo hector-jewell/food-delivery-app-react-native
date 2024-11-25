@@ -193,7 +193,7 @@ export const saveSendGridApiKey = `mutation SaveSendGridApiKey($configurationInp
     sendGridEnabled
     sendGridEmail
     sendGridEmailName
-    sendGridPassword
+    sendGridPassword 
   }
 }`
 
@@ -210,6 +210,7 @@ export const saveFirebaseConfiguration = `
       msgSenderId
       appId
       measurementId
+      vapidKey
     }
   }
 `
@@ -289,12 +290,13 @@ export const saveAppConfiguration = `
     }
   }
 `
-export const saveDeliveryRateConfiguration = `mutation SaveDeliveryRateConfiguration($deliveryRate: Float!){
-  saveDeliveryRateConfiguration(deliveryRate:$deliveryRate){
+export const saveDeliveryRateConfiguration = `mutation SaveDeliveryRateConfiguration($configurationInput: DeliveryCostConfigurationInput!) {
+  saveDeliveryRateConfiguration(configurationInput: $configurationInput) {
     _id
     deliveryRate
+    costType
   }
-}`
+}`;
 
 export const savePaypalConfiguration = `mutation SavePaypalConfiguration($configurationInput:PaypalConfigurationInput!){
   savePaypalConfiguration(configurationInput:$configurationInput){
@@ -613,6 +615,8 @@ export const createCuisine = `mutation CreateCuisine($cuisineInput:CuisineInput!
           _id
           name
           description
+          image
+        shopType
         }
       }`
 export const editCuisine = `mutation editCuisine($cuisineInput:CuisineInput!){
@@ -620,11 +624,41 @@ export const editCuisine = `mutation editCuisine($cuisineInput:CuisineInput!){
           _id
           name
           description
+          image
+      shopType
               }
             }`
 export const deleteCuisine = `mutation DeleteCuisine($id:String!){
               deleteCuisine(id:$id)
             }`
+
+export const createBanner = `mutation CreateBanner($bannerInput:BannerInput!){
+  createBanner(bannerInput:$bannerInput){
+    _id
+    title
+    description
+    action
+    file
+    screen
+    parameters
+  }
+}`
+
+export const editBanner = `mutation editBanner($bannerInput:BannerInput!){
+  editBanner(bannerInput:$bannerInput){
+    _id
+    title
+    description
+    action
+    file
+    screen
+    parameters
+  }
+}`
+
+export const deleteBanner = `mutation DeleteBanner($id:String!){
+  deleteBanner(id:$id)
+}`
 
 export const createTipping = `mutation CreateTipping($tippingInput:TippingInput!){
         createTipping(tippingInput:$tippingInput){
@@ -680,6 +714,7 @@ export const editRestaurant = `mutation EditRestaurant($restaurantInput:Restaura
       orderPrefix
       name
       image
+      logo
       slug
       address
       username
@@ -772,6 +807,7 @@ export const createRestaurant = `mutation CreateRestaurant($restaurant:Restauran
     name
     slug
     image
+    logo
     address
     username
     password
@@ -783,19 +819,36 @@ export const createRestaurant = `mutation CreateRestaurant($restaurant:Restauran
   }
 }`
 
-export const updateDeliveryBoundsAndLocation = `mutation UPDATE_DELIVERY_BOUNDS_AND_LOCATION($id:ID!,$bounds:[[[Float!]]],$location:CoordinatesInput!){
-  result :updateDeliveryBoundsAndLocation(id:$id,location:$location,bounds:$bounds){
-    success
-    message
-    data{
-      _id
-      deliveryBounds{
-        coordinates
+export const updateDeliveryBoundsAndLocation = `mutation UPDATE_DELIVERY_BOUNDS_AND_LOCATION( $id: ID!
+    $boundType: String!
+    $bounds: [[[Float!]]]
+    $circleBounds: CircleBoundsInput
+    $location: CoordinatesInput!
+    $address: String
+    $postCode: String
+    $city: String){
+
+    result: updateDeliveryBoundsAndLocation(
+      id: $id
+      boundType: $boundType
+      circleBounds: $circleBounds
+      bounds: $bounds
+      location: $location
+      address: $address
+      postCode: $postCode
+      city: $city
+    ) {
+      success
+      message
+      data {
+        _id
+        deliveryBounds {
+          coordinates
+        }
+        location {
+          coordinates
+        }
       }
-      location{
-        coordinates
-      }
-    }
   }
 }`
 

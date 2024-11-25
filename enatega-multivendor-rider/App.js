@@ -13,7 +13,6 @@ import FlashMessage from 'react-native-flash-message'
 import * as Location from 'expo-location'
 import * as SplashScreen from 'expo-splash-screen'
 import * as Updates from 'expo-updates'
-import * as Sentry from 'sentry-expo'
 import AppContainer from './src/routes/index'
 import colors from './src/utilities/colors'
 import setupApolloClient from './src/apollo/index'
@@ -35,29 +34,19 @@ LogBox.ignoreLogs([
 LogBox.ignoreAllLogs() // Ignore all log notifications
 
 export default function App() {
- // const { t } = useTranslation();
+  // const { t } = useTranslation();
   const [appIsReady, setAppIsReady] = useState(false)
   const [token, setToken] = useState(null)
   const [isUpdating, setIsUpdating] = useState(false)
   const [active, setActive] = useState('NewOrder')
 
   const client = setupApolloClient()
-  const { SENTRY_DSN } = getEnvVars()
-  useEffect(() => {
-    if (SENTRY_DSN) {
-      Sentry.init({
-        dsn: SENTRY_DSN,
-        enableInExpoDevelopment: true,
-        debug: true,
-        tracesSampleRate: 1.0 // to be changed to 0.2 in production
-      })
-    }
-  }, [SENTRY_DSN])
+ 
 
   useEffect(() => {
-    ;(async () => {
+    ;(async() => {
       await SplashScreen.preventAutoHideAsync()
-     
+
       await Font.loadAsync({
         MuseoSans300: require('./src/assets/font/MuseoSans/MuseoSans300.ttf'),
         MuseoSans500: require('./src/assets/font/MuseoSans//MuseoSans500.ttf'),
@@ -73,7 +62,7 @@ export default function App() {
   useEffect(() => {
     // eslint-disable-next-line no-undef
     if (__DEV__) return
-    ;(async () => {
+    ;(async() => {
       const { isAvailable } = await Updates.checkForUpdateAsync()
       if (isAvailable) {
         try {

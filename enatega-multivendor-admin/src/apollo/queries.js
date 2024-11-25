@@ -261,6 +261,8 @@ export const getConfiguration = `query GetConfiguration{
       isPaidVersion
       skipEmailVerification
       skipMobileVerification
+      costType
+      vapidKey
     }
   }`
 
@@ -342,6 +344,89 @@ export const getActiveOrders = `query GetActiveOrders($restaurantId:ID){
       username
       available
     }
+  }
+}`
+
+export const getActiveOrdersWithPagination = `query getActiveOrdersWithPagination( $page: Int, $rowsPerPage: Int, $search: String, $restaurantId: ID){
+  getActiveOrdersWithPagination( page: $page, rowsPerPage: $rowsPerPage, search: $search, restaurantId: $restaurantId)
+ {
+   orders 
+   {
+    _id
+    zone{
+      _id
+    }
+    orderId
+    restaurant{
+      _id
+      name
+      image
+      address
+      location{coordinates}
+    }
+    deliveryAddress{
+      location{coordinates}
+      deliveryAddress
+      details
+      label
+    }
+    items{
+      _id
+      title
+      description
+      image
+      quantity
+      variation{
+        _id
+        title
+        price
+        discounted
+      }
+      addons{
+        _id
+        options{
+          _id
+          title
+          description
+          price
+        }
+        description
+        title
+        quantityMinimum
+        quantityMaximum
+      }
+      specialInstructions
+      isActive
+      createdAt
+      updatedAt
+    }
+    user{
+      _id
+      name
+      phone
+      email
+    }
+    paymentMethod
+    paidAmount
+    orderAmount
+    orderStatus
+    isPickedUp
+    status
+    paymentStatus
+    reason
+    isActive
+    createdAt
+    deliveryCharges
+    rider{
+      _id
+      name
+      username
+      available
+    }
+   }
+    orderCount 
+    page
+    rowsPerPage
   }
 }`
 
@@ -429,12 +514,29 @@ export const getCoupons = `query Coupons{
     }
   }`
 
-  export const getCuisines = `query Cuisines{
+export const getCuisines = `query Cuisines{
     cuisines {
       _id
       name
       description
+      image
+      shopType
     }
+  }`
+
+export const getBanners = `query Banners{
+    banners {
+      _id
+      title
+      description
+      action
+      screen
+      file
+      parameters
+    }
+  }`
+export const getBannerActions = `query BannerActions{
+    bannerActions
   }`
 
 export const getTipping = `query Tips{
@@ -533,6 +635,7 @@ export const getRestaurantProfile = `query Restaurant($id:String){
       slug
       name
       image
+      logo
       address
       location{coordinates}
       deliveryBounds{

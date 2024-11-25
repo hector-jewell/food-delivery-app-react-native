@@ -1,17 +1,19 @@
-import React, { useState, useEffect, useReducer } from 'react'
+import React, { useState, useEffect, useReducer, useRef } from 'react'
 import AppContainer from './src/routes'
 import * as Notifications from 'expo-notifications'
+import * as Device from 'expo-device'
 import * as Font from 'expo-font'
-import 'react-native-gesture-handler'
+import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import * as SplashScreen from 'expo-splash-screen'
-// import * as Sentry from 'sentry-expo'
+
 import {
   BackHandler,
   Platform,
   StatusBar,
   LogBox,
   StyleSheet,
-  ActivityIndicator
+  ActivityIndicator,
+  I18nManager
 } from 'react-native'
 import { ApolloProvider } from '@apollo/client'
 import { exitAlert } from './src/utils/androidBackButton'
@@ -23,7 +25,7 @@ import { ConfigurationProvider } from './src/context/Configuration'
 import { UserProvider } from './src/context/User'
 import { AuthProvider } from './src/context/Auth'
 import { theme as Theme } from './src/utils/themeColors'
-import { LocationContext } from './src/context/Location'
+import { LocationProvider } from './src/context/Location'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import 'expo-dev-client'
 import useEnvVars, { isProduction } from './environment'
@@ -31,6 +33,10 @@ import { requestTrackingPermissions } from './src/utils/useAppTrackingTrasparenc
 import { OrdersProvider } from './src/context/Orders'
 import { MessageComponent } from './src/components/FlashMessage/MessageComponent'
 import * as Updates from 'expo-updates'
+import ReviewModal from './src/components/Review'
+import { NOTIFICATION_TYPES } from './src/utils/enums'
+import { useColorScheme } from 'react-native'
+import useWatchLocation from './src/ui/hooks/useWatchLocation'
 
 LogBox.ignoreLogs([
   'Warning: ...',
@@ -39,16 +45,29 @@ LogBox.ignoreLogs([
 ]) // Ignore log notification by message
 LogBox.ignoreAllLogs() // Ignore all log notifications
 
-// Default Theme
-const themeValue = 'Pink'
+
+Notifications.setNotificationHandler({
+  handleNotification: async notification => {
+    return {
+      shouldShowAlert: notification?.request?.content?.data?.type !== NOTIFICATION_TYPES.REVIEW_ORDER,
+      shouldPlaySound: false,
+      shouldSetBadge: false
+    }
+  }
+})
 
 export default function App() {
+  const reviewModalRef = useRef()
   const [appIsReady, setAppIsReady] = useState(false)
   const [location, setLocation] = useState(null)
+  const notificationListener = useRef()
+  const responseListener = useRef()
+  const [orderId, setOrderId] = useState()
+  const systemTheme = useColorScheme()
   // Theme Reducer
-  const [theme, themeSetter] = useReducer(ThemeReducer, themeValue)
+  const [theme, themeSetter] = useReducer(ThemeReducer, systemTheme === 'dark' ? 'Dark' : 'Pink')
   const [isUpdating, setIsUpdating] = useState(false)
-
+  useWatchLocation()
   useEffect(() => {
     const loadAppData = async () => {
       try {
@@ -62,7 +81,7 @@ export default function App() {
         MuseoSans500: require('./src/assets/font/MuseoSans/MuseoSans500.ttf'),
         MuseoSans700: require('./src/assets/font/MuseoSans/MuseoSans700.ttf')
       })
-      await permissionForPushNotificationsAsync()
+      // await permissionForPushNotificationsAsync()
       await getActiveLocation()
       BackHandler.addEventListener('hardwareBackPress', exitAlert)
 
@@ -78,14 +97,12 @@ export default function App() {
 
   useEffect(() => {
     try {
-      AsyncStorage.getItem('theme').then((response) =>
-        response !== 'Pink' ? themeSetter({ type: response }) : null
-      )
+      themeSetter({ type: systemTheme === 'dark' ? 'Dark' : 'Pink' })
     } catch (error) {
       // Error retrieving data
       console.log('Theme Error : ', error.message)
     }
-  }, [theme])
+  }, [systemTheme])
 
   useEffect(() => {
     if (!appIsReady) return
@@ -111,39 +128,34 @@ export default function App() {
     requestTrackingPermissions()
   }, [])
 
-  const { SENTRY_DSN } = useEnvVars()
+
   const client = setupApolloClient()
-
-  // useEffect(() => {
-  //   if (SENTRY_DSN) {
-  //     Sentry.init({
-  //       dsn: SENTRY_DSN,
-  //       enableInExpoDevelopment: true,
-  //       debug: !isProduction,
-  //       tracesSampleRate: 1.0 // to be changed to 0.2 in production
-  //     })
-  //   }
-  // }, [SENTRY_DSN])
-
+  const shouldBeRTL = false;
+  if (shouldBeRTL !== I18nManager.isRTL && Platform.OS !== 'web') {
+    I18nManager.allowRTL(shouldBeRTL);
+    I18nManager.forceRTL(shouldBeRTL);
+    Updates.reloadAsync();
+  }
+ 
   useEffect(() => {
     // eslint-disable-next-line no-undef
     if (__DEV__) return
-    ;(async () => {
-      const { isAvailable } = await Updates.checkForUpdateAsync()
-      if (isAvailable) {
-        try {
-          setIsUpdating(true)
-          const { isNew } = await Updates.fetchUpdateAsync()
-          if (isNew) {
-            await Updates.reloadAsync()
+      ; (async () => {
+        const { isAvailable } = await Updates.checkForUpdateAsync()
+        if (isAvailable) {
+          try {
+            setIsUpdating(true)
+            const { isNew } = await Updates.fetchUpdateAsync()
+            if (isNew) {
+              await Updates.reloadAsync()
+            }
+          } catch (error) {
+            console.log('error while updating app', JSON.stringify(error))
+          } finally {
+            setIsUpdating(false)
           }
-        } catch (error) {
-          console.log('error while updating app', JSON.stringify(error))
-        } finally {
-          setIsUpdating(false)
         }
-      }
-    })()
+      })()
   }, [])
 
   if (isUpdating) {
@@ -174,57 +186,64 @@ export default function App() {
     }
   }
 
-  async function permissionForPushNotificationsAsync() {
-    const { status: existingStatus } = await Notifications.getPermissionsAsync()
-    let finalStatus = existingStatus
-    // only ask if permissions have not already been determined, because
-    // iOS won't necessarily prompt the user a second time.
-    if (existingStatus !== 'granted') {
-      // Android remote notification permissions are granted during the app
-      // install, so this will only ask on iOS
-      const { status } = await Notifications.requestPermissionsAsync()
-      finalStatus = status
-    }
+  useEffect(() => {
+    registerForPushNotificationsAsync()
 
-    // Stop here if the user did not grant permissions
-    if (finalStatus !== 'granted') {
-      return
-    }
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      if (notification?.request?.content?.data?.type === NOTIFICATION_TYPES.REVIEW_ORDER) {
+        const id = notification?.request?.content?.data?._id
+        if (id) {
+          setOrderId(id)
+          reviewModalRef?.current?.open()
+        }
+      }
+    })
 
-    if (Platform.OS === 'android') {
-      Notifications.setNotificationChannelAsync('default', {
-        name: 'default',
-        importance: Notifications.AndroidImportance.HIGH,
-        vibrationPattern: [0, 250, 250, 250],
-        lightColor: '#FF231F7C'
-      })
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      if (response?.notification?.request?.content?.data?.type === NOTIFICATION_TYPES.REVIEW_ORDER) {
+        const id = response?.notification?.request?.content?.data?._id
+        if (id) {
+          setOrderId(id)
+          reviewModalRef?.current?.open()
+        }
+      }
+    })
+    return () => {
+      Notifications.removeNotificationSubscription(notificationListener.current)
+      Notifications.removeNotificationSubscription(responseListener.current)
     }
+  }, [])
+
+  const onOverlayPress = () => {
+    reviewModalRef?.current?.close()
   }
 
   if (appIsReady) {
     return (
-      <ApolloProvider client={client}>
-        <ThemeContext.Provider
-          value={{ ThemeValue: theme, dispatch: themeSetter }}
-        >
-          <StatusBar
-            backgroundColor={Theme[theme].menuBar}
-            barStyle={theme === 'Dark' ? 'light-content' : 'dark-content'}
-          />
-          <LocationContext.Provider value={{ location, setLocation }}>
-            <ConfigurationProvider>
-              <AuthProvider>
-                <UserProvider>
-                  <OrdersProvider>
-                    <AppContainer />
-                  </OrdersProvider>
-                </UserProvider>
-              </AuthProvider>
-            </ConfigurationProvider>
-          </LocationContext.Provider>
-          <FlashMessage MessageComponent={MessageComponent} />
-        </ThemeContext.Provider>
-      </ApolloProvider>
+      <GestureHandlerRootView style={{ flex: 1 }}>
+        <ApolloProvider client={client}>
+          <ThemeContext.Provider
+            value={{ ThemeValue: theme, dispatch: themeSetter }}>
+            <StatusBar
+              backgroundColor={Theme[theme].menuBar}
+              barStyle={theme === 'Dark' ? 'light-content' : 'dark-content'}
+            />
+            <LocationProvider>
+              <ConfigurationProvider>
+                <AuthProvider>
+                  <UserProvider>
+                    <OrdersProvider>
+                      <AppContainer />
+                      <ReviewModal ref={reviewModalRef} onOverlayPress={onOverlayPress} theme={Theme[theme]} orderId={orderId} />
+                    </OrdersProvider>
+                  </UserProvider>
+                </AuthProvider>
+              </ConfigurationProvider>
+            </LocationProvider>
+            <FlashMessage MessageComponent={MessageComponent} />
+          </ThemeContext.Provider>
+        </ApolloProvider>
+      </GestureHandlerRootView>
     )
   } else {
     return null
@@ -240,3 +259,38 @@ const styles = StyleSheet.create({
     alignItems: 'center'
   }
 })
+async function registerForPushNotificationsAsync() {
+  if (Platform.OS === 'android') {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'default',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#FF231F7C'
+    })
+  }
+
+  if (Device.isDevice) {
+    const { status: existingStatus } = await Notifications.getPermissionsAsync()
+    let finalStatus = existingStatus
+    if (existingStatus !== 'granted') {
+      const { status } = await Notifications.requestPermissionsAsync()
+      finalStatus = status
+    }
+    if (finalStatus !== 'granted') {
+      alert('Failed to get push token for push notification!')
+    }
+  } else {
+    alert('Must use physical device for Push Notifications')
+  }
+}
+
+// async function schedulePushNotification() {
+//   await Notifications.scheduleNotificationAsync({
+//     content: {
+//       title: "You've got mail! 📬",
+//       body: 'Here is the notification body',
+//       data: { type: NOTIFICATION_TYPES.REVIEW_ORDER, _id: '65e068b2150aab288f2b821f' }
+//     },
+//     trigger: { seconds: 10 }
+//   })
+// }
